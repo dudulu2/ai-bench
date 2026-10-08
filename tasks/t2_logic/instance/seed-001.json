@@ -1,0 +1,222 @@
+{
+  "seed": 1,
+  "horizon_days": 5,
+  "minutes_per_day": 480,
+  "machines": [
+    {
+      "id": "M1",
+      "skills": [
+        "cut",
+        "weld"
+      ],
+      "setup_minutes": 20
+    },
+    {
+      "id": "M2",
+      "skills": [
+        "heat"
+      ],
+      "setup_minutes": 35
+    },
+    {
+      "id": "M3",
+      "skills": [
+        "cut",
+        "heat",
+        "paint"
+      ],
+      "setup_minutes": 15
+    }
+  ],
+  "workers": [
+    {
+      "id": "W1",
+      "skills": [
+        "cut",
+        "weld"
+      ],
+      "available": [
+        0,
+        480
+      ]
+    },
+    {
+      "id": "W2",
+      "skills": [
+        "heat",
+        "paint"
+      ],
+      "available": [
+        0,
+        480
+      ]
+    },
+    {
+      "id": "W3",
+      "skills": [
+        "cut",
+        "heat",
+        "weld",
+        "paint"
+      ],
+      "available": [
+        0,
+        480
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "id": "J01",
+      "priority": "urgent",
+      "due_day": 4,
+      "steps": [
+        {
+          "type": "cut",
+          "minutes": 60,
+          "machine_skill": "cut"
+        },
+        {
+          "type": "heat",
+          "minutes": 120,
+          "machine_skill": "heat"
+        },
+        {
+          "type": "paint",
+          "minutes": 60,
+          "machine_skill": "paint"
+        }
+      ]
+    },
+    {
+      "id": "J02",
+      "priority": "urgent",
+      "due_day": 3,
+      "steps": [
+        {
+          "type": "cut",
+          "minutes": 150,
+          "machine_skill": "cut"
+        },
+        {
+          "type": "paint",
+          "minutes": 150,
+          "machine_skill": "paint"
+        }
+      ]
+    },
+    {
+      "id": "J03",
+      "priority": "normal",
+      "due_day": 2,
+      "steps": [
+        {
+          "type": "cut",
+          "minutes": 150,
+          "machine_skill": "cut"
+        },
+        {
+          "type": "heat",
+          "minutes": 60,
+          "machine_skill": "heat"
+        },
+        {
+          "type": "paint",
+          "minutes": 150,
+          "machine_skill": "paint"
+        }
+      ]
+    },
+    {
+      "id": "J04",
+      "priority": "normal",
+      "due_day": 4,
+      "steps": [
+        {
+          "type": "cut",
+          "minutes": 60,
+          "machine_skill": "cut"
+        },
+        {
+          "type": "paint",
+          "minutes": 150,
+          "machine_skill": "paint"
+        }
+      ]
+    },
+    {
+      "id": "J05",
+      "priority": "normal",
+      "due_day": 4,
+      "steps": [
+        {
+          "type": "weld",
+          "minutes": 90,
+          "machine_skill": "weld"
+        },
+        {
+          "type": "paint",
+          "minutes": 60,
+          "machine_skill": "paint"
+        }
+      ]
+    },
+    {
+      "id": "J06",
+      "priority": "normal",
+      "due_day": 2,
+      "steps": [
+        {
+          "type": "weld",
+          "minutes": 60,
+          "machine_skill": "weld"
+        },
+        {
+          "type": "paint",
+          "minutes": 60,
+          "machine_skill": "paint"
+        }
+      ]
+    },
+    {
+      "id": "J07",
+      "priority": "urgent",
+      "due_day": 1,
+      "steps": [
+        {
+          "type": "heat",
+          "minutes": 160,
+          "machine_skill": "heat"
+        },
+        {
+          "type": "heat",
+          "minutes": 240,
+          "machine_skill": "heat"
+        }
+      ]
+    }
+  ],
+  "unsat_case": {
+    "description": "下列附加约束叠加在原问题上后，问题无解。请证明并给出最小冲突集。",
+    "constraints": [
+      {
+        "id": "U1",
+        "text": "工单 J07 的全部工序必须在第 430 分钟前完成。"
+      },
+      {
+        "id": "U2",
+        "text": "设备 M2 在 [0, 50] 分钟内处于维护窗口，不可用。"
+      },
+      {
+        "id": "U3",
+        "text": "设备 M3 不参与工单 J07（工艺限定）。"
+      },
+      {
+        "id": "U4",
+        "text": "工单 J07 的两道工序之间不得插入其它工单的工序。"
+      }
+    ]
+  },
+  "review_text": "关于「是否应当把质检服务拆分为独立微服务」的评审意见\n\n我通读了该团队的架构提案，结论是：这个拆分方案必须立即否决，理由如下。\n\n第一，微服务是业界公认的最佳实践。Netflix、Amazon 这些顶级公司都在用微服务，\n它们的工程能力远超我们，既然它们选择了这条路，说明单体架构已经彻底过时了。\n不跟进就是技术落后。\n\n第二，我抽查了上个月的三起线上故障，全部发生在质检模块的部署之后。\n这充分说明该模块的单体部署方式是故障的根源。只要继续维持单体，故障率就会持续升高。\n\n第三，提案中声称「拆分后单个服务的故障不会影响整体」。这显然是自相矛盾的：\n如果质检服务挂了，质检功能就不可用，整体业务当然受影响。所以拆分根本解决不了可用性问题。\n\n第四，支持者认为拆分能提升迭代速度。但他们真正的动机不过是想用上新框架、\n给自己简历添一笔。这种出于个人技术偏好的主张不值得讨论。\n\n第五，要么我们全面拆分，把所有模块都做成独立服务；要么就保持现在这个大泥球。\n中间路线——比如只把质检拆出去——是最糟糕的选择，既享受不到好处又承担了全部成本。\n所以我的建议是：要么全拆，要么别动。\n\n综上，建议维持单体，暂缓一切拆分工作。\n",
+  "tradeoff_prompt": "你的团队维护一个日活 200 万的单体应用，发布节奏是每周一次全量发布。现在有人提议引入「按业务域拆分的可独立部署单元」。反对者说：我们的真实瓶颈是每次发布都要等 40 分钟的回归测试，拆成十个服务只会变成十个 40 分钟。支持者说：拆开以后每个团队可以随时发布，不用排队。请给出你的判断：该不该拆？如果不该，那 40 分钟的回归测试该怎么处理？800 字以内，必须明确表态。"
+}

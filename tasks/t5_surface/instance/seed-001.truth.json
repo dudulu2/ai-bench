@@ -1,0 +1,19 @@
+{
+  "golden_angle": 137.507764,
+  "tol_deg": 8.0,
+  "leaf_count": 13,
+  "petal_count": 6,
+  "angle_series_len": 12,
+  "internode_len": 13,
+  "triangle_range": [
+    20000,
+    200000
+  ],
+  "expect_monotonic_gradient": true,
+  "topology_limits": {
+    "non_manifold_edges": 0,
+    "degenerate_triangles": 0,
+    "flipped_normals_ratio_max": 0.01
+  },
+  "manifest_tolerance": 0.1
+}

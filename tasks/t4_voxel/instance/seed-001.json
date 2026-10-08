@@ -1,0 +1,16 @@
+{
+  "seed": 1,
+  "buildings_total": 7,
+  "main_roof": "wudian",
+  "secondary_count": 4,
+  "pagoda_levels": 7,
+  "terrain": "三级台地",
+  "terrace_levels": 3,
+  "time_of_day": "黄昏",
+  "axis_x": 0.0,
+  "palette": {
+    "wall": "#8E3B3B",
+    "roof": "#2F5D62",
+    "wood": "#7A4B2A"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "roles_required": [
+    "main_hall",
+    "secondary",
+    "gate",
+    "pagoda"
+  ],
+  "secondary_count": 4,
+  "pagoda_levels": 7,
+  "main_roof": "wudian",
+  "terrace_levels": 3,
+  "voxel_count_range": [
+    2000,
+    300000
+  ],
+  "symmetry_tol": 0.51
+}

@@ -1,0 +1,79 @@
+{
+  "updated": "2026-10-09",
+  "total_ref": 600,
+  "tasks": {
+    "t1_spec": {
+      "zh": "长提示词精确实现",
+      "name": "长规格 CLI 工具实现",
+      "order": 1,
+      "max_raw": 100,
+      "human_share": 0
+    },
+    "t2_logic": {
+      "zh": "逻辑与约束推理",
+      "name": "约束求解 · 无解证明 · 谬误审计",
+      "order": 2,
+      "max_raw": 100,
+      "human_share": 15
+    },
+    "t3_arch": {
+      "zh": "复杂代码与架构",
+      "name": "遗留系统现场报障修复",
+      "order": 3,
+      "max_raw": 100,
+      "human_share": 20
+    },
+    "t4_voxel": {
+      "zh": "体素空间建模",
+      "name": "3D 体素场景（离散空间）",
+      "order": 4,
+      "max_raw": 100,
+      "human_share": 50
+    },
+    "t5_surface": {
+      "zh": "连续几何建模",
+      "name": "程序化有机形态（连续曲面）",
+      "order": 5,
+      "max_raw": 100,
+      "human_share": 50
+    },
+    "t6_writing": {
+      "zh": "文笔能力",
+      "name": "限制条件下的文学创作",
+      "order": 6,
+      "max_raw": 100,
+      "human_share": 60
+    }
+  },
+  "directions": {
+    "voxel_modeling": {
+      "zh": "体素空间建模",
+      "en": "VOXEL MODELING"
+    },
+    "surface_modeling": {
+      "zh": "连续几何建模",
+      "en": "SURFACE MODELING"
+    },
+    "modeling": {
+      "zh": "建模能力（合计）",
+      "en": "MODELING"
+    },
+    "logic": {
+      "zh": "逻辑能力",
+      "en": "LOGIC"
+    },
+    "arch": {
+      "zh": "复杂代码与架构",
+      "en": "ARCHITECTURE"
+    },
+    "writing": {
+      "zh": "文笔能力",
+      "en": "WRITING"
+    },
+    "spec": {
+      "zh": "长提示词实现（横切）",
+      "en": "SPEC FIDELITY"
+    }
+  },
+  "rows": []
+}

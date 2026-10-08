@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ai-bench · 六题七方向公开榜</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="brand"><i></i><span>ai-bench<small>CAPABILITY BENCHMARK v1</small></span></div>
+  <nav>
+    <a href="#" class="on" data-view="total">总榜</a>
+    <a href="#" data-view="task">逐题</a>
+    <a href="#" data-view="dir">方向</a>
+    <a href="#" data-view="method">方法</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="meta"><span>// SUITE</span><b>6 TASKS · 7 DIRECTIONS</b></div>
+    <h1>AI 能力专项测试</h1>
+    <p>六道题、七个方向。能机器判的机器判，判不了的才交给人。</p>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section class="panel">
+    <div class="thead"><span>// BOARD</span><h2 id="viewTitle">总榜</h2></div>
+    <div class="scroll"><table id="board"></table></div>
+  </section>
+
+  <section class="panel method">
+    <div class="thead"><span>// METHOD</span><h2>判分方式</h2></div>
+    <ul>
+      <li><b>机器判为主。</b>隐藏测试、契约哈希、几何断言、OBJ 拓扑重算、诱捕题 —— 能确定判的绝不让人判。</li>
+      <li><b>人工只在末端出现。</b>每题设自动分门槛，没过门槛的作品直接出分、不进人工队列。人工占比约 32%。</li>
+      <li><b>审美与体验用感官分。</b>人工盲评界面一次展示一组渲染图，遮模型名、随机排序，先打分后揭晓。</li>
+      <li><b>建模拆成两个方向。</b>体素（离散空间布局）与曲面（连续形态发生）考察内容不同，不合并。</li>
+      <li><b>v1 直接百分制。</b>六题各 100 分，合计 600。不设归一化基准，待样本 N≥10 后在 v2 引入。</li>
+      <li><b>效率只披露不计分。</b>轮次 / token / 耗时作为同分时的参考。</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div><strong>AI BENCH</strong><span>六题 · 七方向 · 机器为主人工兜底</span></div>
+  <div class="fm"><span id="upd"></span><span>STATIC / PUBLIC</span></div>
+</footer>
+
+<script>
+let DATA = null, VIEW = "total";
+const $ = s => document.querySelector(s);
+
+async function boot(){
+  try { DATA = await (await fetch("board.json")).json(); }
+  catch(e){ document.querySelector("#board").innerHTML = "<p class='empty'>board.json 未生成 —— 先跑 python runner/run.py site</p>"; return; }
+  $("#upd").textContent = "UPDATED " + DATA.updated;
+  $("#stats").innerHTML = [
+    ["参评模型", DATA.rows.length],
+    ["参考总分", DATA.total_ref],
+    ["待人工", DATA.rows.filter(r => r.pending_human > 0).length]
+  ].map(([k,v]) => `<div><b>${v}</b><span>${k}</span></div>`).join("");
+  render();
+  document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
+    e.preventDefault();
+    document.querySelectorAll("nav a").forEach(x => x.classList.remove("on"));
+    a.classList.add("on"); VIEW = a.dataset.view; render();
+  });
+  document.querySelector(".method").style.display = "none";
+}
+
+function taskCols(){ return Object.keys(DATA.tasks).sort((a,b) => DATA.tasks[a].order - DATA.tasks[b].order); }
+function dirCols(){ return Object.keys(DATA.directions); }
+
+function render(){
+  const t = $("#viewTitle");
+  document.querySelector(".method").style.display = VIEW === "method" ? "block" : "none";
+  document.querySelector(".scroll").style.display = VIEW === "method" ? "none" : "block";
+  if (VIEW === "method"){ t.textContent = "方法"; return; }
+
+  const cols = VIEW === "total" ? [] : VIEW === "task" ? taskCols() : dirCols();
+  t.textContent = VIEW === "total" ? "总分榜" : VIEW === "task" ? "逐题榜" : "方向榜";
+
+  let head = "<tr><th>#</th><th>模型</th><th>批次</th>";
+  if (VIEW === "total") head += "<th>总分</th><th>机器</th><th>人工</th><th>待评</th>";
+  else cols.forEach(c => head += `<th>${VIEW === "task" ? DATA.tasks[c].zh : DATA.directions[c].zh}</th>`);
+  head += "</tr>";
+
+  let body = DATA.rows.map(r => {
+    let line = `<tr><td class="rk">${r.rank}</td><td class="md">${r.model}</td><td class="ts">${r.ts}</td>`;
+    if (VIEW === "total"){
+      const pct = (r.total / DATA.total_ref * 100).toFixed(1);
+      line += `<td class="tot"><b>${r.total.toFixed(1)}</b><i>${pct}%</i></td>`;
+      line += `<td>${r.auto_total.toFixed(1)}</td><td>${r.human_total.toFixed(1)}</td>`;
+      line += `<td class="${r.pending_human > 0 ? 'pend' : ''}">${r.pending_human > 0 ? r.pending_human.toFixed(0) : "—"}</td>`;
+    } else {
+      cols.forEach(c => {
+        let v = VIEW === "task"
+          ? (r.tasks[c] ? r.tasks[c].auto + r.tasks[c].human : 0)
+          : (r.directions ? r.directions[c] : 0);
+        const mx = VIEW === "task" ? DATA.tasks[c].max_raw : null;
+        const w = mx ? Math.min(100, v / mx * 100) : Math.min(100, v / 100 * 100);
+        line += `<td class="v"><span class="bar" style="width:${w}%"></span><b>${(v||0).toFixed(1)}</b></td>`;
+      });
+    }
+    return line + "</tr>";
+  }).join("");
+
+  $("#board").innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+}
+boot();
+</script>
+</body>
+</html>

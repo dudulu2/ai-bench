@@ -1,0 +1,14 @@
+{
+  "unsat": true,
+  "mus": [
+    "U1",
+    "U2"
+  ],
+  "reason": "J07 关键路径 400 分钟，只能用 M2；M2 在 [0,50] 维护，最早完成 = 50+400 = 450 > 430。",
+  "remove_one_to_sat": [
+    "U1",
+    "U2"
+  ],
+  "earliest_with_both": 450,
+  "deadline": 430
+}

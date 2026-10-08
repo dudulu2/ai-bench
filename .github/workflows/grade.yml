@@ -1,0 +1,33 @@
+name: source-check
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Parse Python without executing submissions
+        run: python -c "import ast,pathlib; files=list(pathlib.Path('.').rglob('*.py')); [ast.parse(p.read_text(encoding='utf-8-sig')) for p in files]; print('parsed',len(files))"
+      - name: Check source hygiene
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          excluded = [p for p in Path("runs").rglob("*") if p.is_file() and p.name != ".gitkeep"]
+          assert not excluded, f"Do not publish run submissions or participant data: {excluded}"
+          print("Source hygiene passed.")
+          PY
+# SECURITY: PR submissions may include executable code. Do not run graders
+# on pull_request or issue_comment, even when a contributor requests it.
+# Grading must occur in a separately isolated, no-network sandbox without
+# GitHub tokens or writable access to the host.

@@ -1,0 +1,190 @@
+# ai-bench 题集定义 · v1
+#
+# 版本：v1（首版，不做历史对齐，不设归一化基准）
+# 计分：每题原始满分 100，六题合计 600。v1 采用直接百分制，不归一化。
+#       待样本数 N>=10 后再在 v2 引入「冻结基准归一」。
+# 判分：checkpoints 中 mode=auto 由机器判；mode=human 只在通过该题 gate 后进入人工队列。
+
+version: 1
+suite: ai-bench
+total_ref: 600
+task_count: 6
+
+# ---------------------------------------------------------------- 方向定义
+# 建模能力拆成两个子方向：体素（离散空间）与曲面（连续几何），二者考察内容不同，不合并。
+directions:
+  voxel_modeling:
+    zh: 体素空间建模
+    en: VOXEL MODELING
+    note: 离散方块拼装下的空间布局、尺度、对称与叙事
+    weights: { t4_voxel: 1.0 }
+  surface_modeling:
+    zh: 连续几何建模
+    en: SURFACE MODELING
+    note: 连续曲面下的形态学正确性、拓扑质量与材质
+    weights: { t5_surface: 1.0 }
+  modeling:
+    zh: 建模能力（合计）
+    en: MODELING
+    weights: { t4_voxel: 0.5, t5_surface: 0.5 }
+  logic:
+    zh: 逻辑能力
+    en: LOGIC
+    weights: { t2_logic: 0.7, t3_arch: 0.3 }
+  arch:
+    zh: 复杂代码与架构
+    en: ARCHITECTURE
+    weights: { t3_arch: 0.6, t1_spec: 0.4 }
+  writing:
+    zh: 文笔能力
+    en: WRITING
+    weights: { t6_writing: 1.0 }
+  spec:
+    zh: 长提示词实现（横切）
+    en: SPEC FIDELITY
+    note: 由 T1 主导，其余各题的「提示词复现」检查点共同合成
+    weights: { t1_spec: 0.5, t4_voxel: 0.15, t5_surface: 0.15, t3_arch: 0.1, t6_writing: 0.1 }
+
+# ---------------------------------------------------------------- 题目定义
+tasks:
+
+  t1_spec:
+    order: 1
+    zh: 长提示词精确实现
+    name: 长规格 CLI 工具实现
+    domain: SPEC / CODE
+    max_raw: 100
+    human_share: 0
+    # 机器判满分即可出分，无需人工
+    gate: { enabled: false }
+    artifact: { kind: code, entry: "src/", test_cmd: "pytest -q" }
+    deliverables:
+      - 完整可运行项目（含自写测试）
+      - _decisions.md（标注规格中的冲突与缺失，并说明取舍）
+    checkpoints:
+      A1: { zh: 隐藏测试通过率, mode: auto,   max: 40 }
+      A2: { zh: 契约与接口一致性, mode: auto, max: 20 }
+      A3: { zh: 硬约束逐条命中,   mode: auto, max: 25 }
+      A4: { zh: 冲突与缺失识别,   mode: auto, max: 10 }
+      A5: { zh: 静态质量,         mode: auto, max: 5  }
+
+  t2_logic:
+    order: 2
+    zh: 逻辑与约束推理
+    name: 约束求解 · 无解证明 · 谬误审计
+    domain: LOGIC
+    max_raw: 100
+    human_share: 15
+    gate: { enabled: true, min_auto: 40, reason: "客观项不过半，开放式论证不值得送评" }
+    artifact: { kind: text, entry: "answers/" }
+    deliverables:
+      - answers/solution.json（排产解）
+      - answers/unsat.md（无解子问题的证明与最小冲突集）
+      - answers/fallacies.md（谬误审计清单）
+      - answers/tradeoff.md（开放式权衡论证）
+    checkpoints:
+      B1: { zh: 硬约束满足,        mode: auto,  max: 30 }
+      B2: { zh: 解的质量,          mode: auto,  max: 20 }
+      B3: { zh: 无解证明与最小冲突集, mode: auto, max: 15 }
+      B4: { zh: 谬误审计命中,      mode: auto,  max: 20 }
+      B5: { zh: 开放式论证质量,    mode: human, max: 15, rubric: human/rubric-t2.md }
+
+  t3_arch:
+    order: 3
+    zh: 复杂代码与架构
+    name: 遗留系统现场报障修复
+    domain: ARCHITECTURE / BACKEND
+    max_raw: 100
+    human_share: 20
+    gate: { enabled: true, min_auto: 60, reason: "修都没修对，答复写得好没有意义" }
+    artifact: { kind: code, entry: "repo/", test_cmd: "python -m pytest -q" }
+    # 一票否决：冻结文件被改即判不合规，不进入计分
+    compliance:
+      frozen_files: ["CONTRACT.md", "tests/test_public.py", "SPEC.md"]
+      hash_check: true
+    deliverables:
+      - 修复后的整个目录（冻结文件不得修改）
+      - _answers/*.json（每题一个：题目/verdict/rootCause/evidence/notes）
+    checkpoints:
+      C1: { zh: 公开测试仍全绿,    mode: auto,  max: 10 }
+      C2: { zh: 隐藏测试,          mode: auto,  max: 30 }
+      C3: { zh: 并发与事务原子性,  mode: auto,  max: 15 }
+      C4: { zh: 根因诊断命中,      mode: auto,  max: 20 }
+      C5: { zh: 修改爆炸半径,      mode: auto,  max: 5  }
+      C6: { zh: 工程判断与答复语风, mode: human, max: 20, rubric: human/rubric-t3.md }
+    bonus:
+      C7: { zh: 清单外额外发现,    mode: auto,  max: 10 }
+
+  t4_voxel:
+    order: 4
+    zh: 体素空间建模
+    name: 3D 体素场景（离散空间）
+    domain: MODELING / VOXEL / 3D
+    max_raw: 100
+    human_share: 50
+    gate: { enabled: true, min_auto: 25, reason: "连几何断言都没过，审美评分无意义" }
+    artifact: { kind: web, entry: "index.html", shots: ["front", "top", "three-quarter"] }
+    deliverables:
+      - 可直接在浏览器打开的项目
+      - scene-manifest.json（声明式场景清单，供机器校验）
+    checkpoints:
+      D1: { zh: 构建与运行,        mode: auto,  max: 10 }
+      D2: { zh: 场景清单几何断言,  mode: auto,  max: 20 }
+      D3: { zh: 性能与规模,        mode: auto,  max: 5  }
+      D4: { zh: 提示词复现,        mode: auto,  max: 10 }
+      D5: { zh: 渲染完整性,        mode: auto,  max: 5, weak: true }
+      D6: { zh: 视觉审美与氛围,    mode: human, max: 50, rubric: human/rubric-t4.md, input: images }
+
+  t5_surface:
+    order: 5
+    zh: 连续几何建模
+    name: 程序化有机形态（连续曲面）
+    domain: MODELING / SURFACE / 3D
+    max_raw: 100
+    human_share: 50
+    gate: { enabled: true, min_auto: 25, reason: "连拓扑与形态学都没过，审美评分无意义" }
+    artifact: { kind: web, entry: "index.html", shots: ["front", "side", "three-quarter", "detail"] }
+    deliverables:
+      - 可直接在浏览器打开的项目
+      - surface-manifest.json（网格统计与形态学参数，供机器校验）
+    checkpoints:
+      E1: { zh: 构建与运行,          mode: auto,  max: 10 }
+      E2: { zh: 拓扑与形态学断言,    mode: auto,  max: 25 }
+      E3: { zh: 性能与规模,          mode: auto,  max: 5  }
+      E4: { zh: 提示词复现,          mode: auto,  max: 10 }
+      E5: { zh: 视觉审美与真实感,    mode: human, max: 50, rubric: human/rubric-t5.md, input: images }
+
+  t6_writing:
+    order: 6
+    zh: 文笔能力
+    name: 限制条件下的文学创作
+    domain: WRITING
+    max_raw: 100
+    human_share: 60
+    gate: { enabled: true, min_auto: 20, reason: "硬约束都没满足的作品不值得评文学性" }
+    artifact: { kind: text, entry: "story.md" }
+    deliverables:
+      - story.md（仅正文，不要任何说明）
+    checkpoints:
+      F1: { zh: 硬约束满足,      mode: auto,  max: 30 }
+      F2: { zh: 逻辑自洽与伏笔,  mode: auto,  max: 10 }
+      F3: { zh: 文学性,          mode: human, max: 40, rubric: human/rubric-t6.md, input: text }
+      F4: { zh: 结构与节奏,      mode: human, max: 20, rubric: human/rubric-t6.md, input: text }
+
+# ---------------------------------------------------------------- 人工评审
+human:
+  mode: self          # 自评：由出题人自己在盲评界面打分
+  input: images       # 主要输入形式：一组渲染图（T4/T5）或一段文本（T6/T2）
+  scale: { min: 1, max: 10, step: 1 }
+  blind: true         # 遮模型名
+  shuffle: true       # 随机顺序
+  judges_min: 1
+  anchors: true       # 每题提供锚定样例，降低评委漂移
+  # 感官分 -> 检查点得分的映射：score = round(raw/10 * checkpoint.max)（可在 review.html 中改）
+  map: "score = raw / 10 * max"
+
+# ---------------------------------------------------------------- 效率指标（只披露，不计入主分）
+efficiency:
+  enabled: true
+  metrics: [turns, tokens, wall_clock_seconds, retries]
+  usage: tie_break

@@ -1,0 +1,20 @@
+{
+  "seed": 1,
+  "species": "anemone",
+  "species_zh": "银莲花",
+  "stem_height_range": [
+    90,
+    110
+  ],
+  "leaf_count": 13,
+  "petal_count": 6,
+  "phyllotaxis": "alternate_spiral",
+  "target_divergence_deg": 137.508,
+  "tolerance_deg": 8.0,
+  "flower": true,
+  "veins_required": true,
+  "triangle_range": [
+    20000,
+    200000
+  ]
+}

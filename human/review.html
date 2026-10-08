@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ai-bench · 感官评分盲评台</title>
+<style>
+:root{
+  --bg:#111214; --panel:#191a1d; --panel2:#212226; --line:#2e3035;
+  --fg:#e8e8e6; --fg2:#a0a2a8; --fg3:#6e7076;
+  --accent:#5B8DEF; --ok:#4CAF7D; --warn:#E0A33E; --bad:#D9534F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:14px/1.6 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+header{position:sticky;top:0;z-index:10;background:var(--panel);
+  border-bottom:1px solid var(--line);padding:12px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+header h1{font-size:15px;font-weight:600;margin:0;letter-spacing:.02em}
+.sp{flex:1}
+button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+  border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}
+button:hover{border-color:#45484f}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+.progress{font-size:13px;color:var(--fg2);font-variant-numeric:tabular-nums}
+main{padding:18px;max-width:1400px;margin:0 auto}
+.groupbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+  padding:5px 13px;font-size:12.5px;color:var(--fg2);cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip .n{opacity:.7;margin-left:5px;font-variant-numeric:tabular-nums}
+.hint{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:8px;padding:10px 14px;margin-bottom:16px;color:var(--fg2);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  display:flex;flex-direction:column}
+.card.done{border-color:#2c5a42}
+.shot{width:100%;aspect-ratio:4/3;object-fit:contain;background:#0b0c0d;cursor:zoom-in;display:block}
+.thumbs{display:flex;gap:6px;padding:8px;background:#0e0f10;overflow-x:auto}
+.thumbs img{height:46px;width:64px;object-fit:cover;border-radius:5px;cursor:pointer;
+  border:1px solid transparent;opacity:.6;flex:none}
+.thumbs img.on{opacity:1;border-color:var(--accent)}
+.textbody{padding:12px;max-height:340px;overflow:auto;white-space:pre-wrap;
+  font-size:13px;color:var(--fg2);background:#0e0f10;font-family:ui-monospace,Consolas,monospace}
+.card h3{margin:0;padding:10px 12px 0;font-size:13px;font-weight:600}
+.card h3 .idx{color:var(--fg3);font-weight:400;margin-right:6px}
+.reveal{margin:0 12px;font-size:12px;color:var(--warn);display:none}
+.reveal.on{display:block}
+.scale{padding:10px 12px;display:flex;gap:5px;flex-wrap:wrap}
+.scale button{min-width:32px;padding:6px 0;text-align:center;font-variant-numeric:tabular-nums}
+.scale button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.note{margin:0 12px 12px;width:calc(100% - 24px);background:#0e0f10;color:var(--fg);
+  border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:12.5px;resize:vertical}
+.foot{display:flex;gap:10px;align-items:center;padding:14px 0 40px;flex-wrap:wrap}
+.empty{color:var(--fg3);padding:60px 0;text-align:center}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;
+  justify-content:center;z-index:50;cursor:zoom-out}
+.lb.on{display:flex}
+.lb img{max-width:94vw;max-height:94vh;object-fit:contain}
+</style>
+</head>
+<body>
+<header>
+  <h1>感官评分盲评台</h1>
+  <span class="progress" id="prog">—</span>
+  <span class="sp"></span>
+  <button id="btnShuffle">重新洗牌</button>
+  <button id="btnReveal">揭晓身份</button>
+  <button id="btnExport" class="primary">导出 scores.json</button>
+</header>
+
+<main>
+  <div class="groupbar" id="groups"></div>
+  <div class="hint" id="hint">加载中…</div>
+  <div class="grid" id="grid"></div>
+  <div class="foot">
+    <button id="btnPrev">← 上一组</button>
+    <button id="btnNext">下一组 →</button>
+    <span class="sp"></span>
+    <span class="progress" id="footInfo"></span>
+  </div>
+</main>
+
+<div class="lb" id="lb"><img alt="放大预览"></div>
+
+<script>
+const KEY = "ai-bench-human-scores";
+let DATA = null, BOARD = null, scores = {}, order = {};
+let groupIdx = 0, revealed = false;
+
+const $ = s => document.querySelector(s);
+const store = {
+  load(){ try{ return JSON.parse(localStorage.getItem(KEY) || "{}"); }catch(e){ return {}; } },
+  save(){ localStorage.setItem(KEY, JSON.stringify(scores)); }
+};
+
+function shuffled(a, seedKey){
+  // 稳定洗牌：同一组每次刷新顺序一致，点「重新洗牌」才变
+  const arr = a.slice();
+  let h = 2166136261;
+  for (const ch of (seedKey + (order[seedKey] || 0))) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  let s = h >>> 0;
+  for (let i = arr.length - 1; i > 0; i--){
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+async function boot(){
+  scores = store.load();
+  try { DATA = await (await fetch("queue.json")).json(); } catch(e){
+    $("#hint").textContent = "无法加载 queue.json —— 请先运行 python runner/run.py human-queue，并通过 HTTP 打开本页（不要 file://）。";
+    return;
+  }
+  try { BOARD = await (await fetch("../site/board.json")).json(); } catch(e){}
+  buildGroups();
+  render();
+}
+
+function groupsOf(){
+  const m = new Map();
+  for (const it of DATA.items){
+    const k = it.task + "/" + it.checkpoint;
+    if (!m.has(k)) m.set(k, { key:k, task:it.task, cp:it.checkpoint, subject:it.subject, max:it.max, items:[] });
+    m.get(k).items.push(it);
+  }
+  return [...m.values()];
+}
+
+function buildGroups(){
+  const gs = groupsOf();
+  const bar = $("#groups"); bar.innerHTML = "";
+  gs.forEach((g, i) => {
+    const b = document.createElement("div");
+    b.className = "chip" + (i === groupIdx ? " on" : "");
+    const done = g.items.filter(x => scores[x.key] != null).length;
+    b.innerHTML = `${g.task} · ${g.cp} ${g.subject || ""}<span class="n">${done}/${g.items.length}</span>`;
+    b.onclick = () => { groupIdx = i; buildGroups(); render(); };
+    bar.appendChild(b);
+  });
+}
+
+function autoFor(model, ts, task){
+  if (!BOARD) return null;
+  const row = BOARD.rows.find(r => r.model === model && r.ts === ts);
+  if (!row) return null;
+  const t = row.tasks && row.tasks[task];
+  return t ? t.auto : null;
+}
+
+function render(){
+  const gs = groupsOf();
+  if (!gs.length){ $("#grid").innerHTML = '<div class="empty">人工队列为空 —— 说明所有题目都由机器判完了。</div>'; return; }
+  const g = gs[groupIdx];
+  const items = shuffled(g.items, g.key);
+  const scale = DATA.scale || { min:1, max:10 };
+
+  $("#hint").innerHTML = `<b>${g.task} · ${g.cp} ${g.subject || ""}</b> ——
+    每组 ${items.length} 件作品，逐件给 <b>${scale.min}–${scale.max}</b> 分感官分。
+    评分先打，身份最后揭晓，避免被机器分锚定。满分 ${g.max} 分，映射为 <code>感官分 / ${scale.max} × ${g.max}</code>。`;
+
+  const grid = $("#grid"); grid.innerHTML = "";
+  items.forEach((it, i) => {
+    const card = document.createElement("div");
+    card.className = "card" + (scores[it.key] != null ? " done" : "");
+    const head = document.createElement("h3");
+    head.innerHTML = `<span class="idx">${String.fromCharCode(65 + i)}</span>${revealed ? it.model + " · " + it.ts : "匿名作品"} `;
+    card.appendChild(head);
+
+    if (it.input === "images" && (it.assets || []).length){
+      const img = document.createElement("img");
+      img.className = "shot"; img.src = it.assets[0]; img.alt = "渲染图";
+      img.onclick = () => { const lb = $("#lb"); lb.querySelector("img").src = img.src; lb.classList.add("on"); };
+      card.appendChild(img);
+      if (it.assets.length > 1){
+        const th = document.createElement("div"); th.className = "thumbs";
+        it.assets.forEach((a, j) => {
+          const t = document.createElement("img"); t.src = a; t.className = j === 0 ? "on" : "";
+          t.onclick = () => { img.src = a; th.querySelectorAll("img").forEach(x => x.classList.remove("on")); t.classList.add("on"); };
+          th.appendChild(t);
+        });
+        card.appendChild(th);
+      }
+    } else {
+      const p = document.createElement("div");
+      p.className = "textbody"; p.textContent = it.text || "(无内容)";
+      card.appendChild(p);
+    }
+
+    const rv = document.createElement("div");
+    rv.className = "reveal" + (revealed ? " on" : "");
+    const a = autoFor(it.model, it.ts, it.task);
+    rv.textContent = `身份：${it.model} · ${it.ts}；该题机器分：${a == null ? "—" : a}`;
+    card.appendChild(rv);
+
+    const sc = document.createElement("div"); sc.className = "scale";
+    for (let v = scale.min; v <= scale.max; v++){
+      const b = document.createElement("button");
+      b.textContent = v;
+      if (scores[it.key] === v) b.classList.add("on");
+      b.onclick = () => {
+        scores[it.key] = v; store.save();
+        sc.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+        b.classList.add("on"); card.classList.add("done"); updateProgress(); buildGroups();
+      };
+      sc.appendChild(b);
+    }
+    card.appendChild(sc);
+
+    const ta = document.createElement("textarea");
+    ta.className = "note"; ta.rows = 2; ta.placeholder = "一句短评（可选）";
+    ta.textContent = (scores[it.key + "::note"] || "");
+    ta.oninput = () => { scores[it.key + "::note"] = ta.value; store.save(); };
+    card.appendChild(ta);
+
+    grid.appendChild(card);
+  });
+  updateProgress();
+}
+
+function updateProgress(){
+  const gs = groupsOf();
+  const total = gs.reduce((s, g) => s + g.items.length, 0);
+  const done = gs.reduce((s, g) => s + g.items.filter(x => scores[x.key] != null).length, 0);
+  $("#prog").textContent = `已评 ${done} / ${total}`;
+  $("#footInfo").textContent = `第 ${groupIdx + 1} / ${gs.length} 组`;
+  $("#btnPrev").disabled = groupIdx === 0;
+  $("#btnNext").disabled = groupIdx >= gs.length - 1;
+}
+
+$("#btnPrev").onclick = () => { if (groupIdx > 0){ groupIdx--; buildGroups(); render(); } };
+$("#btnNext").onclick = () => { if (groupIdx < groupsOf().length - 1){ groupIdx++; buildGroups(); render(); } };
+$("#btnReveal").onclick = e => { revealed = !revealed; e.target.textContent = revealed ? "隐藏身份" : "揭晓身份"; render(); };
+$("#btnShuffle").onclick = () => {
+  const g = groupsOf()[groupIdx]; if (!g) return;
+  order[g.key] = (order[g.key] || 0) + 1; render();
+};
+$("#btnExport").onclick = () => {
+  const out = {};
+  for (const k of Object.keys(scores)) if (!k.endsWith("::note")) out[k] = scores[k];
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "scores.json"; a.click();
+  $("#footInfo").textContent = `已导出 ${Object.keys(out).length} 条 —— 把它保存到 human/scores.json 后重跑 runner/run.py site`;
+};
+$("#lb").onclick = () => $("#lb").classList.remove("on");
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "TEXTAREA") return;
+  if (e.key === "ArrowRight") $("#btnNext").click();
+  if (e.key === "ArrowLeft") $("#btnPrev").click();
+});
+boot();
+</script>
+</body>
+</html>

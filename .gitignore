@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 被测代码库产生的运行时数据
+tasks/t3_arch/repo/data.db
+tasks/t3_arch/repo/**/data.db
+runs/**/repo/data.db
+runs/**/node_modules/
+runs/**/dist/
+runs/**/.vite/
+
+# 本地判分中间产物
+.tmp/
+*.log
+
+# 人工评分由评委导出后放回仓库，过程文件不入库
+human/assets/
+!human/assets/.gitkeep
+.DS_Store
